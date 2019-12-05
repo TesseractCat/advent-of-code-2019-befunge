@@ -1,0 +1,444 @@
+<html>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+    <meta content="utf-8" http-equiv="encoding">
+    <head>
+        <style>
+            #code_area {
+                width:auto;
+                height:500px;
+                border:1px solid grey;
+                font-family:monospace,monospace;
+                font-size:15;
+                display:block;
+                padding:5px;
+                margin:0px;
+                resize:none;
+                box-sizing: border-box;
+                flex: 0 0 80%;
+                white-space:pre;
+                overflow:scroll;
+            }
+            #code_run_area {
+                width:1000px;
+                height:500px;
+                border:1px solid grey;
+                outline:none;
+                display:none;
+                margin:0px;
+                box-sizing: border-box; 
+                flex: 0 0 80%;
+                overflow:scroll;
+            }
+            #code_content_area, #code_highlight_area {
+                width:100%;
+                height:100%;
+                border:none;
+                outline:none;
+                display:inline-block;
+                margin:0px;
+                padding:5px;
+                box-sizing: border-box;
+                font-family:monospace, monospace;
+                font-size:15;
+                white-space: pre;
+                resize:none;
+                overflow:hidden;
+            }
+            #code_highlight_area {
+                position:relative;
+                top:-100%;
+                color:rgba(200,2,2,0.5);
+            }
+            body {
+                margin:50px;
+            }
+            #wrapper {
+                display:flex;
+            }
+            #stack_area {
+                margin:50px;
+                flex:0 0 15%;
+                text-align:center;
+                overflow:hidden;
+                overflow-wrap: normal;
+            }
+
+            #output_area {
+                width:400px;
+            }
+        </style>
+        <script>
+            Array.prototype.pop = function () {
+                popped_val = this.splice(this.length - 1, 1)[0];
+                if (popped_val == undefined) {
+                    return 0;
+                } else {
+                    return popped_val;
+                }
+            }
+
+            String.prototype.replaceAt=function(index, replacement) {
+                return this.substr(0, index) + replacement+ this.substr(index + replacement.length);
+            }
+
+            pointer = {x:0,y:0};
+            pointer_delta = {x:1,y:0};
+            funge_space = [];
+            stack = [];
+            input_stack = [];
+            string_mode = false;
+
+            function step() {
+                cmd = cmd_at_point(pointer.x,pointer.y);
+                console.log("Step: " + cmd);
+
+                if (!string_mode) {
+                    switch (cmd) {
+                        //Numerals
+                        case "0":
+                            stack.push(0);
+                            break;
+                        case "1":
+                            stack.push(1);
+                            break;
+                        case "2":
+                            stack.push(2);
+                            break;
+                        case "3":
+                            stack.push(3);
+                            break;
+                        case "4":
+                            stack.push(4);
+                            break;
+                        case "5":
+                            stack.push(5);
+                            break;
+                        case "6":
+                            stack.push(6);
+                            break;
+                        case "7":
+                            stack.push(7);
+                            break;
+                        case "8":
+                            stack.push(8);
+                            break;
+                        case "9":
+                            stack.push(9);
+                            break;
+                        //Operators
+                        case ":":
+                            arg_a = stack.pop();
+                            stack.push(arg_a);
+                            stack.push(arg_a);
+                            break;
+                        case "+":
+                            arg_a = stack.pop();
+                            arg_b = stack.pop();
+                            stack.push(arg_a + arg_b);
+                            break;
+                        case "-":
+                            arg_a = stack.pop();
+                            arg_b = stack.pop();
+                            stack.push(arg_b - arg_a);
+                            break;
+                        case "*":
+                            arg_a = stack.pop();
+                            arg_b = stack.pop();
+                            stack.push(arg_a * arg_b);
+                            break;
+                        case "/":
+                            arg_a = stack.pop();
+                            arg_b = stack.pop();
+                            if (arg_a == 0) {
+                                arg_a = parseInt(window.prompt("Arg A was 0, what should A be?"));
+                            }
+                            stack.push(Math.floor(arg_b / arg_a));
+                            break;
+                        case "\\":
+                            arg_a = stack.pop();
+                            arg_b = stack.pop();
+                            stack.push(arg_a);
+                            stack.push(arg_b);
+                            break;
+                        case "$":
+                            stack.pop();
+                            break;
+                        case "%":
+                            arg_a = stack.pop();
+                            arg_b = stack.pop();
+                            if (arg_a == 0) {
+                                arg_a = parseInt(window.prompt("Arg A was 0, what should A be?"));
+                            }
+                            stack.push(arg_b % arg_a);
+                            break;
+                        case "!":
+                            arg_a = stack.pop();
+                            if (arg_a == 0) {
+                                stack.push(1);
+                            } else {
+                                stack.push(0);
+                            }
+                            break;
+                        case "`":
+                            arg_a = stack.pop();
+                            arg_b = stack.pop();
+                            if (arg_b > arg_a) {
+                                stack.push(1);
+                            } else {
+                                stack.push(0);
+                            }
+                            break;
+                        //Movement
+                        case ">":
+                            pointer_delta = {x:1,y:0};
+                            break;
+                        case "<":
+                            pointer_delta = {x:-1,y:0};
+                            break;
+                        case "^":
+                            pointer_delta = {x:0,y:-1};
+                            break;
+                        case "v":
+                            pointer_delta = {x:0,y:1};
+                            break;
+                        case "#":
+                            pointer.x += pointer_delta.x;
+                            pointer.y += pointer_delta.y;
+                            break;
+                        case "=":
+                            //BREAKPOINT, NOT SPEC
+                            clearInterval(autostep_interval);
+                            break;
+                        case "@":
+                            pointer_delta = {x:0,y:0};
+                            clearInterval(autostep_interval);
+                            return true;
+                            break;
+                        case "_":
+                            comparison_val = stack.pop();
+                            if (comparison_val == 0) {
+                                pointer_delta = {x:1,y:0};
+                            } else {
+                                pointer_delta = {x:-1,y:0};
+                            }
+                            break;
+                        case "|":
+                            comparison_val = stack.pop();
+                            if (comparison_val == 0) {
+                                pointer_delta = {x:0,y:1};
+                            } else {
+                                pointer_delta = {x:0,y:-1};
+                            }
+                            break;
+                        case "?":
+                            random_val = Math.floor(Math.random() * 4) + 1
+                            if (random_val == 1) {
+                                pointer_delta = {x:1,y:0};
+                            } else if (random_val == 2) {
+                                pointer_delta = {x:-1,y:0};
+                            } else if (random_val == 3) {
+                                pointer_delta = {x:0,y:1};
+                            } else if (random_val == 4) {
+                                pointer_delta = {x:0,y:-1};
+                            }
+                            break;
+                        //Strings and IO
+                        case '"':
+                            string_mode = !string_mode;
+                            break;
+                        case '&':
+                            if (do_prev_input.checked) {
+                                input_val = input_stack.pop();
+                                if (parseInt(input_val) != NaN) {
+                                    stack.push(parseInt(input_val));
+                                } else {
+                                    stack.push(0);
+                                }
+                            } else {
+                                stack.push(parseInt(prompt("Enter integer")));
+                            }
+                            break;
+                        case '~':
+                            if (do_prev_input.checked) {
+                                input_val = input_stack.pop();
+                                stack.push(input_val.charCodeAt(0));
+                            } else {
+                                stack.push(prompt("Enter char").charCodeAt(0));
+                            }
+                            break;
+                        case '.':
+                            output_val = stack.pop();
+                            output_area.value = output_area.value + output_val.toString() + " ";
+                            break;
+                        case ',':
+                            output_val = stack.pop();
+                            output_area.value = output_area.value + String.fromCharCode(output_val);
+                            break;
+                        //Get and Put
+                        case "g":
+                            arg_y = stack.pop();
+                            arg_x = stack.pop();
+                            console.log("Get at: " + arg_x + ", " + arg_y)
+                            return_val = 32;
+                            for (var i = 0; i < funge_space.length; i++) {
+                                if (funge_space[i].x == arg_x && funge_space[i].y == arg_y) {
+                                    return_val = funge_space[i].value;
+                                }
+                            }
+                            stack.push(return_val);
+                            break;
+                        case "p":
+                            arg_y = stack.pop();
+                            arg_x = stack.pop();
+                            arg_v = stack.pop();
+                            console.log("Put at: " + arg_x + ", " + arg_y)
+
+                            split_run_area = code_content_area.value.split("\n");
+                            if (arg_y + 1 > split_run_area.length) {
+                                split_run_area = split_run_area.concat(Array((arg_y + 1) - split_run_area.length).fill(" "));
+                            }
+                            if (arg_x + 1 > split_run_area[arg_y].length) {
+                                split_run_area[arg_y] = split_run_area[arg_y] + " ".repeat((arg_x + 1) - split_run_area[arg_y].length);
+                            }
+                            if (arg_v >= 32 && arg_v <= 126) {
+                                split_run_area[arg_y] = split_run_area[arg_y].replaceAt(arg_x, String.fromCharCode(arg_v));
+                            } else if (arg_v == 0) {
+                                split_run_area[arg_y] = split_run_area[arg_y].replaceAt(arg_x, " ");
+                            } else {
+                                split_run_area[arg_y] = split_run_area[arg_y].replaceAt(arg_x, "█");
+                            }
+                            console.log(split_run_area);
+                            code_content_area.value = split_run_area.join("\n");
+
+                            for (var i = 0; i < funge_space.length; i++) {
+                                if (funge_space[i].x == arg_x && funge_space[i].y == arg_y) {
+                                    funge_space[i].value = arg_v;
+                                    break;
+                                }
+                            }
+                            funge_space.push({x:arg_x,y:arg_y,value:arg_v});
+                            break;
+                    }
+                } else {
+                    if (cmd == '"') {
+                        string_mode = !string_mode;
+                    } else {
+                        char_val_at = cmd.charCodeAt(0);
+                        if (char_val_at == 0) {
+                            char_val_at = 32;
+                        }
+                        stack.push(char_val_at);
+                    }
+                }
+
+                pointer.x += pointer_delta.x;
+                pointer.y += pointer_delta.y;
+                
+                highlight_at_point(pointer.x,pointer.y);
+
+                stack_area.value = stack.toString().replace(/\,/g,", ");
+
+                return false;
+            }
+
+            function highlight_at_point(x,y) {
+                code_highlight_area.innerHTML = ("\n".repeat(y)) + (" ".repeat(x)) + "█";
+            }
+
+            function cmd_at_point(x,y) {
+                for (var i = 0; i < funge_space.length; i++) {
+                    if (funge_space[i].x == x && funge_space[i].y == y) {
+                        return String.fromCharCode(funge_space[i].value);
+                    }
+                }
+                return "";
+            }
+
+            function code_to_space() {
+                funge_space = [];
+                split_area = code_area.value.split("\n");
+                for (var j = 0; j < split_area.length; j++) {
+                    for (var k = 0; k < split_area[j].length; k++) {
+                        val_at_point = split_area[j][k].charCodeAt(0);
+                        if (val_at_point == 32) {
+                            val_at_point = 0;
+                        }
+                        funge_space.push({x:k,y:j,value:val_at_point});
+                    }
+                }
+                console.log(funge_space);
+            }
+
+            function init() {
+                code_area.style.display='none';
+                code_run_area.style.display='block';
+                code_content_area.value = code_area.value;
+
+                code_to_space();
+                stack = [];
+                pointer_delta = {x:1,y:0};
+                pointer = {x:0,y:0};
+                string_mode = false;
+                input_stack = input_area.value.split(",").reverse();
+                output_area.value = "";
+            }
+
+            var autostep_interval = 0;
+
+            window.onload = function () {
+                step_button.addEventListener('click', function() {
+                    if (code_area.style.display=='block') {
+                        init();
+                    }
+                    step();
+                });
+                autostep_button.addEventListener("click", function() {
+                    if (code_area.style.display=='block') {
+                        init();
+                    }
+                    clearInterval(autostep_interval);
+                    autostep_interval = setInterval(step, autostep_freq.value);
+                });
+                run_button.addEventListener("click", function() {
+                    if (code_area.style.display=='block') {
+                        init();
+                    }
+                    clearInterval(autostep_interval);
+                    autostep_interval = setInterval(function() {
+                        step();step();step();step();
+                    }, 1);
+                });
+                stop_autostep_button.addEventListener("click", function() {
+                    clearInterval(autostep_interval);
+                });
+                reset_button.addEventListener('click',function () {
+                    clearInterval(autostep_interval);
+                    code_area.style.display='block';
+                    code_run_area.style.display='none';
+                    stack_area.value = "";
+                    code_to_space();
+                })
+            }
+        </script>
+    </head>
+    <body>
+        <h2>TesseractCat's HTML Befunge-93 Interpreter</h2>
+
+        <div id="wrapper">
+            <textarea spellcheck="false" style="display:block" id="code_area">64+"!dlroW ,olleH">:#,_@</textarea>
+            <div id="code_run_area"><textarea id="code_content_area" readonly>64+"!dlroW ,olleH">:#,_@</textarea><div id="code_highlight_area"></div></div>
+            <textarea id="stack_area" placeholder="Stack content" readonly></textarea>
+        </div>
+
+        <br><br>
+        <input type='checkbox' id="do_prev_input"><input id="input_area" placeholder="Input...">
+        <input id="output_area" placeholder="Output..." readonly>
+        <br><br>
+        <button id="step_button">Step</button>
+        <button id="run_button">Run</button>
+        <button id="reset_button">Reset</button>
+        <br><br>
+        <button id="autostep_button">Autostep</button> <input id="autostep_freq" value="50" type="number"> <button id="stop_autostep_button">Stop</button>
+        
+    </body>
+</html>
